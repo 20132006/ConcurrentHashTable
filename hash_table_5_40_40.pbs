@@ -1,0 +1,9 @@
+#!/bin/bash
+
+echo "qsub Hashtable start"
+
+for nthr in 1 2 4 8 16
+do
+		echo Run 5,131072,$nthr,40,40
+		/home/sinsunby/cse412/P1/hashtable 5 131072 $nthr 40 40 
+done

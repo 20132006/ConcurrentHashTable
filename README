@@ -1,0 +1,46 @@
+/** \CSE412 Assignment_1
+ *  \author Jaeyoung Yun
+ *  \sinsunby@unist.ac.kr
+    \modified Kyu Yeun Kim
+    \kyuyeunk@unist.ac.kr
+ */
+
+0. How to access the Ferrari cluster
+
+    - Install and use the SSH terminal emulator (e.g. Putty)
+    - Host Name: ferrari.unist.ac.kr
+    - Account / Pwd: refer to BB announcements
+
+1. Complete the unfinished code, hashtable.c
+
+2. $ make
+
+3. Test
+
+    (1) local evaluation
+
+    - In your local machine.
+
+    - run hashtable with 5 arguments. (make sure that the second argument does not exceed 131072 operations)
+
+    - $ ./hashtable (number of buckets) (number of operations) (number of threads) (probability of insert) (probability of delete)
+
+    (2) cluster evaluation
+
+    - In Ferrari cluster
+
+    - use qsub to submit your job to cluster.
+
+    - $ qsub -l nodes=1:ppn=16 hash_table_(#)_(#)_(#).pbs
+
+    : You should qsub four .pbs files. First number means
+    number of buckets, second number is probability of insert,
+    and third number means probability of delete
+    (You have to change the hashtable PATH in script file)
+    (e.g. /home/sinsunby/ -> /home/"$Account")
+
+    - You can track your job process by $ qstat
+
+    - When your job is finished, you will get two output files, .e and .o.
+
+    - .e logs the error message and .o logs the output message.
