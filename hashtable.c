@@ -29,7 +29,8 @@ struct element{
 struct bucket_t{ 
     //hashtable bucket
     struct element *chain;
-    pthread_mutex_t mutex; 
+    pthread_mutex_t mutex_lookup;
+    pthread_mutex_t mutex_DeleteInsert;
 };
 
 struct hashtable{ //hashtable
@@ -55,6 +56,7 @@ struct data_t *data;
 
 int num_op; // total number of operations to be performed
 int nthr; // number of threads
+int numLookup[100];
 
 int hashtable_init(H_table_t *hash_table, int numbuckets){
 
@@ -67,6 +69,7 @@ int hashtable_init(H_table_t *hash_table, int numbuckets){
     int i;
     for (i=0;i<numbuckets;i++)
     {
+        numLookup[i] =0;
         (*hash_table)->bucket[i].chain = NULL;
     }
 }
@@ -79,7 +82,11 @@ int hashtable_insert(H_table_t *hash_table, int key){
     //duplicates are allowed.
     //printf("element INSERT called %d\n", key);
 
+
     int index = key % (*hash_table)->num_bucket;
+
+    pthread_mutex_lock( &((*hash_table)->bucket[index].mutex_DeleteInsert) ); //<----------------- lock
+    
     struct element *elem = malloc (sizeof(element_T));
     elem->key = key;
     elem->next = elem;
@@ -88,6 +95,7 @@ int hashtable_insert(H_table_t *hash_table, int key){
         (*hash_table)->bucket[index].chain = elem;
 
         //printf("element INSERTED %d\n", key);
+        pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_DeleteInsert) ); //<----------- unlock
         return 0;
     }
     else
@@ -96,10 +104,11 @@ int hashtable_insert(H_table_t *hash_table, int key){
         (*hash_table)->bucket[index].chain->next = elem;
 
         //printf("element INSERTED %d\n", key);
+        pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_DeleteInsert) ); //<----------- unlock
         return 0;
     }
     
-    
+    pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_DeleteInsert) ); //<--------------- unlock
     //printf("element INSERT fail %d\n", key);
     return -1;
 }
@@ -109,13 +118,31 @@ int hashtable_lookup(H_table_t *hash_table, int key){
     //TODO: Lookup the key. If it is in the hash table, 
     //return 0; otherwise, return -1
     //printf("element Lookup called %d\n", key);
+
     struct element *ptr;
     struct element *node;
     int index = key % (*hash_table)->num_bucket;
 
+    pthread_mutex_lock( &((*hash_table)->bucket[index].mutex_lookup) );
+    
+    numLookup[index]++;
+    if (numLookup[index] == 1)
+        pthread_mutex_lock( &((*hash_table)->bucket[index].mutex_DeleteInsert) );
+
+    pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_lookup) );
+
     //printf("LOOKUP running...\n");
     if ((*hash_table)->bucket[index].chain == NULL)
+    {
+        pthread_mutex_lock( &((*hash_table)->bucket[index].mutex_lookup) );
+
+        numLookup[index]--;
+        if (numLookup[index] == 0)
+            pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_DeleteInsert) );
+        
+        pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_lookup) );
         return -1;
+    }
     
     
     ptr = (*hash_table)->bucket[index].chain;
@@ -132,10 +159,24 @@ int hashtable_lookup(H_table_t *hash_table, int key){
         {
             //printf("LOOKUP running...\n");
             //printf("element Lookup exist %d\n", key);
+            pthread_mutex_lock( &((*hash_table)->bucket[index].mutex_lookup) );
+            
+            numLookup[index]--;
+            if (numLookup[index] == 0)
+                pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_DeleteInsert) );
+            
+            pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_lookup) );
             return 0;
         }
         else if (!first_time && node == (*hash_table)->bucket[index].chain)
         {
+            pthread_mutex_lock( &((*hash_table)->bucket[index].mutex_lookup) );
+
+            numLookup[index]--;
+            if (numLookup[index] == 0)
+                pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_DeleteInsert) );
+            
+            pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_lookup) );
             //printf("element Lookup fail %d\n", key);
             return -1;
         }
@@ -143,6 +184,13 @@ int hashtable_lookup(H_table_t *hash_table, int key){
         first_time = false;
         //printf("LOOKUP running...\n");
     }
+    pthread_mutex_lock( &((*hash_table)->bucket[index].mutex_lookup) );
+    
+    numLookup[index]--;
+    if (numLookup[index] == 0)
+        pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_DeleteInsert) );
+    
+    pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_lookup) );
     //printf("element Lookup fail %d\n", key);
     return -1;
 }
@@ -155,6 +203,8 @@ int hashtable_delete(H_table_t *hash_table, int key){
     //printf("element delete called %d\n", key);
     struct element *ptr,*node;
     int index = key % (*hash_table)->num_bucket;
+
+    pthread_mutex_lock( &((*hash_table)->bucket[index].mutex_DeleteInsert) ); //<--------------------- lock
 
     //printf("DELETE running...\n");
     if ((*hash_table)->bucket[index].chain == NULL)
@@ -172,17 +222,21 @@ int hashtable_delete(H_table_t *hash_table, int key){
             ptr->next = node->next;
             free(node);
             //printf("element deleted%d\n", key);
+            pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_DeleteInsert) ); //<----------- unlock
             return 0;
         }
         else if (!first_time && node == (*hash_table)->bucket[index].chain)
         {
             //printf("element delete fail%d\n", key);
+            pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_DeleteInsert) ); //<----------- unlock
             return -1;
         }
         ptr = node;
         node = ptr->next;
         first_time = false;
     }
+
+    pthread_mutex_unlock( &((*hash_table)->bucket[index].mutex_DeleteInsert) ); //<------------------- unlock
     //printf("element delete fail%d\n", key);
     return -1;
 }
