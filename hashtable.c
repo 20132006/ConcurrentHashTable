@@ -64,8 +64,8 @@ int hashtable_init(H_table_t *hash_table, int numbuckets){
     (*hash_table)->bucket = malloc(numbuckets * sizeof(bucket_Type));
     //printf("hashtable_init running...\n");
     (*hash_table)->num_bucket = numbuckets;
-
-    for (int i=0;i<numbuckets;i++)
+    int i;
+    for (i=0;i<numbuckets;i++)
     {
         (*hash_table)->bucket[i].chain = NULL;
     }
@@ -194,7 +194,16 @@ void *test(void *arguments){
     H_table_t hash_table;
     //TODO: Assign each variable with a correct value
     //use arguments to get hash table structure and thr_id
-
+    struct arg_struct *argum = (struct arg_struct *) arguments;
+    thr_id = argum->thr_id;
+    hash_table = argum->hash_table;
+    int eachTO;
+    if (num_op%nthr != 0)
+	eachTO = (num_op/nthr)+1;
+    start = thr_id*eachTO;
+    end = (thr_id+1)*eachTO;
+    if (end > num_op)
+        end = num_op;
     for(i= start; i< end; i++){
         if(data[i].op == INSERT)
             rc=hashtable_insert(hash_table, data[i].key);
