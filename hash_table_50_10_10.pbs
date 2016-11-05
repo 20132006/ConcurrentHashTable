@@ -5,5 +5,5 @@ echo "qsub Hashtable start"
 for nthr in 1 2 4 8 16
 do
 		echo Run 50,131072,$nthr,10,10
-		/home/cs20132006/ConcurrentHashTable 50 131072 $nthr 10 10 
+		/home/cs20132006/ConcurrentHashTable/hashtable 50 131072 $nthr 10 10 
 done
